@@ -108,11 +108,70 @@ Note that once the contribution for `W_a` at a given stage `t` is known, it can 
   
   
   
-  # Gated Recurrent Unit (GRU):
+# Gated Recurrent Unit (GRU):
   
 * In our vanilla RNN, the horizontal activation is stateless, that is, a "pure function" like tanh. Gated RNNs add an extra "state" to it: for each hidden state `a^{<t>}` there is a corresponding `c^{<t>}` state of the state's gate. Simplified explanation:
-  1. The candidate for updating hidden state is as before `¢^{<t>} = tanh(W_c[c^{<t-1>, x^{<t>}] + b_c)`.
-  2. In the vanilla version this value is directly taken, but here it is passed to a gate `Gamma_u`. The gate's definition is identical to the `¢` one, except for using a sigmoid instead of a tanh. The interpretation for this is that it acts like a "gate", being almost always close to either zero (if `¢` has low activation) or one (high activation).
+  1. The candidate for updating hidden state is as before `¢^{<t>} = tanh(W_c[c^{<t-1>}, x^{<t>}] + b_c)`.
+  2. In the vanilla version this value is directly taken, but here it is passed to a gate `Gamma_u`. The gate's definition is identical to the `¢` one, except for using a sigmoid instead of a tanh (and its own `W_u, b_u` parameters): `Gamma_u = sigmoid(W_u[c^{<t-1>}, x^{<t>}] + b_u)`.
+  . The interpretation for this is that it acts like a "gate", being almost always close to either zero (if `¢` has low activation) or one (high activation).
   3. The actual update is then: `c^{<t>} = Gamma_u*¢<t> + (1-Gamma_u) * ¢<t-1>`. As we see, a strong current term will open the gate and have more impact on the update, whereas a weaker term will let pass more of the previous, `t-1` state.
   
+Note that this applies once per feature, so if c, ¢ and Gamma are vectors, the multiplications in 3. are element-wise.
+
+### Complete version of GRU:
+
+The model described before was simplified. Actually, to compute the candidate, another gate for "relevance" `Gamma_r` is used:
+1. `¢^{<t>} = tanh(W_c[   Gamma_r  *    c^{<t-1>}, x^{<t>}] + b_c)`
+2. The formula for `Gamma_r` is the exact same as `Gamma_u`, but with its own `W_r, b_r` parameters.
+The intuition behind this is that the `Gamma_r` will decide wether to update the candidate or not based on its response, but the response itself will not only depend on the previous `c, x`: `c` itself will be passed through a relevance filter: this still **won't have an impact on the x part of the matmul**, but may nullify the contribution of the c part.
+
+Note that this design is somewhat arbitrary but researchers agree on its efectiveness and together with LSTMs it became a standard. In any case it is possible to customize the design of recurrent units.
+
+
+
+
+# LSTMs:
+
+LSTM units are more complicated, powerful and slow that GRUs. They still are the first go-to model, but recently GRUs have a revival as they also show effectivity and allow to build bigger models.
+
+* The GRU has 2 gates that (apart from their independent weights) are computed identically. LSTMs, is the same, but with 3 gates, called *update, forget, and output*.
+
+* On the other hand, the computation of  `¢` candidate is simplified: `tanh(W_c[a^{<t-1>}, x^{<t>}] + b_c)` the candidate is computed as in the vanilla RNN.
+
+* The complexity comes at the top:
+  1. The update and forget gates are no longer mutually exclusive: `c^{<t>} = Gamma_u*¢<t> + Gamma_f * c<t-1>`: any [0,1] linear combination of update_current_candidate and forget_prior_c is allowed.
+  2. The new hidden state is regulated by the output gate: `a^{<t>} = Gamma_o*c<t>`
+
+So the current candidate depends on the prior a, the current c depends on the current candidate and prior c, and the current a (the actual output) depends on the current c.
+
+
+### Peephole connection:
+
+* A way of adding more capacity to the LSTM is to allow the gate to look into the actual previous c (remember that the LSTM gates depend on `[a,x]` and `a!=c`). I.e: `Gamma_u = sigmoid(W_u[a^{<t-1>}, x^{t}, c^{<t-1>}] + b_u)`.
+
   
+  
+# Bidirectional RNN:
+
+The idea is, for each hidden state `a^{<t>}`, add `ā^{<t>}`, whose forwardprop goes 'backwards', i.e. it starts at `t=T` and ends at `t=1`. Effectively this means having two independent models of the same flipped inputs. They are combined at `y^{<t>} = g(W_y[a^{<t>}, ā^{<t>}] + b_y)`: note that this means that the parameters `W_y` have twice the size.
+
+* BRNN+LSTM appears in many NLP setups and is a very reasonable first thing to try.
+* Note that this vanilla formulation requires to have the whole sequence to predict or be trained. This can be a problem in real-time applications, although there are more complex models to overcome that.
+
+
+With this is easy to see that an early value for `c^{<0>}` can pass all the wat to the end, if the forget and output gate are constantly high and the update low.
+
+
+
+
+# Deep RNNs:
+
+* Sometimes is useful to stack many layers of recurrent units, but it is computationally very expensive compared to standard NNs: 3 layers is already considered deep.
+* Usually hybrid models (f.e. substitute the last `W_y` with a full blown NN).
+
+* Notation: deep RNN means multiple, stacked hidden `a^{<t>}` states. Therefore, for each layer `l`, they are referred here as `a^{[l]<t>}`, and the corresponding parameters are `W_a^{[l]}, b_a^{[l]}`.
+
+* To compute the new state of a, we still have the vanilla `a^{<t>} = W_a*[a^{<t-1>}, x^{<t>}]` for the lowest layer. But for the upper layers, `x` gets replaced by the hidden, lowerer layer, i.e.: `a^{[l]<t>} = W_a*[a^{[l]<t-1>}, a^{[l-1]<t>}]`.
+
+
+
