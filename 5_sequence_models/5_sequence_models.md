@@ -175,3 +175,24 @@ With this is easy to see that an early value for `c^{<0>}` can pass all the wat 
 
 
 
+# ASSIGNMENTS: 
+
+```
+https://learner.coursera.help/hc/en-us/articles/360004990332-Download-Jupyter-Workspace-files
+
+
+To download all of your Jupyter Workspace files at the same time:
+
+    Launch one of your notebooks from coursera.org
+    In the upper right, click the Coursera logo
+    You'll see a file view page that lists all Jupyter resources in your current course. Click the New, then select Terminal to open the system command line.
+    You'll see a shell prompt open. In the shell prompt, type or paste the following statements:
+
+        # Remove the previous archive, if it exists: rm -f ~/workspace.tar.gz && rm  -f ~/work/workspace.tar.gz
+
+        # Create a zipped archive of your workspace directory: tar -czf ~/workspace.tar.gz ~/work
+
+        # Move the archive into the workspace directory so you can see it: mv ~/workspace.tar.gz ~/work/workspace.tar.gz
+    Once the commands run successfully, click on the ‘Coursera’ logo again to return to the file view.
+    In the file view, select workspace.tar.gz, then click Download. Your browser will download the workspace archive, which is yours to keep.
+```
